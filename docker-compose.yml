@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  cc:
+    build: .
+    volumes:
+      - .:/Users/akiyama/code/min-cc
+    tty: true
+    working_dir: /Users/akiyama/code/min-cc
+    platform: linux/amd64
