@@ -1,3 +1,6 @@
 mincc
-tmp.s
-tmp
+tmp*
+*.out
+*~
+*.o
+a.out
