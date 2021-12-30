@@ -11,6 +11,6 @@ test: mincc
 		./test.sh
 
 clean:
-		rm -f mincc *.- *~ tmp*
+		rm -f mincc *~ tmp* *.o
 
 .PHONY: test clean
