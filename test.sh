@@ -4,11 +4,11 @@ assert() {
     input="$2"
 
     ./mincc "$input" > tmp.s
-    cc -o tmp tmp.s
+    gcc -static -o tmp tmp.s
     ./tmp
     actual="$?"
 
-    if [ "$actual"="$expected" ]; then
+    if [ "$actual" = "$expected" ]; then
         echo "$input => $actual"
     else
         echo "$input => $expected expected, but got $actual"
