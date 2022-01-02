@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -19,7 +20,7 @@ typedef struct Token Token;
 struct Token {
   TokenKind kind; // トークンの型
   Token *next; // 次の入力トークン
-  int val; // kindがTK_NUMの場合、その数値
+  long val; // kindがTK_NUMの場合、その数値
   char *str; // トークンの文字列
 };
 
@@ -104,7 +105,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (*p == '+' || *p == '-') {
+    if (ispunct(*p)) {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -115,11 +116,130 @@ Token *tokenize() {
       continue;
     }
 
-    error_at(p, "数ではありません");
+    error_at(p, "トークンエラー");
   }
   new_token(TK_EOF, cur, p);
   return head.next;
 }
+
+//
+// Parser
+//
+
+typedef enum {
+  ND_ADD, // +
+  ND_SUB, // -
+  ND_MUL, // *
+  ND_DIV, // /
+  ND_NUM, // Integer
+} NodeKind;
+
+// AST node type
+typedef struct Node Node;
+struct Node {
+  NodeKind kind; // Node kind
+  Node *lhs; // Left-hand side
+  Node *rhs; // Right-hand side
+  long val; // Used if kind == ND_NUM
+};
+
+static Node *new_node(NodeKind kind) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  return node;
+}
+
+static Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+static Node *new_num(int val) {
+  Node *node = new_node(ND_NUM);
+  node->val = val;
+  return node;
+}
+
+static Node *expr(void);
+static Node *mul(void);
+static Node *primary(void);
+
+// expr = mul ("+" mul | "-" mul)*
+static Node *expr(void) {
+  Node *node = mul();
+
+  for (;;) {
+    if (consume('+'))
+      node = new_binary(ND_ADD, node, mul());
+    else if (consume('-'))
+      node = new_binary(ND_SUB, node, mul());
+    else
+      return node;
+  }
+}
+
+// mul = primary ("*" primary | "/" primary)*
+static Node *mul(void) {
+  Node *node = primary();
+
+  for (;;) {
+    if (consume('*'))
+      node = new_binary(ND_MUL, node, primary());
+    else if (consume('/'))
+      node = new_binary(ND_DIV, node, primary());
+    else
+      return node;
+  }
+}
+
+// primary = "(" expr ")" | num
+static Node *primary(void) {
+  if (consume('(')) {
+    Node *node = expr(); // ()の中の指揮を木に変換する
+    expect(')'); // ')'を飛ばす
+    return node;
+  }
+
+  return new_num(expect_number());
+}
+
+//
+// Code generator
+//
+
+static void gen(Node *node) {
+  if (node->kind == ND_NUM) {
+    printf("  push %ld\n", node->val);
+    return ;
+  }
+
+  gen(node->lhs);
+  gen(node->rhs);
+
+  printf("  pop rdi\n");
+  printf("  pop rax\n");
+
+  switch (node->kind) {
+    case ND_ADD:
+      printf("  add rax, rdi\n");
+      break;
+    case ND_SUB:
+      printf("  sub rax, rdi\n");
+      break;
+    case ND_MUL:
+      printf("  imul rax, rdi\n");
+      break;
+    case ND_DIV:
+      printf("  cqo\n");
+      printf("  idiv rdi\n");
+      break;
+  }
+
+  printf("  push rax\n");
+}
+
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -129,25 +249,16 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
+  Node *node = expr();
 
   printf(".intel_syntax noprefix\n");
   printf(".globl main\n");
   printf("main:\n");
   
-  // 四季の最初は数である必要があるので、それをチェックして最初のmv命令を出力
-  printf("  mov rax, %d\n", expect_number());
 
-  // '+ <数>'または'- <数>'というトークンの並びを消費しつつアセンブリを出力する
-  while (!at_eof()) {
-    if (consume('+')) {
-      printf("  add rax, %d\n", expect_number());
-      continue;
-    }
+  gen(node);
 
-    expect('-');
-    printf("  sub rax, %d\n", expect_number());
-  }
-
+  printf("  pop rax\n");
   printf("  ret\n");
   return 0;
 }
