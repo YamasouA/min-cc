@@ -164,6 +164,7 @@ static Node *new_num(int val) {
 
 static Node *expr(void);
 static Node *mul(void);
+static Node *unary(void);
 static Node *primary(void);
 
 // expr = mul ("+" mul | "-" mul)*
@@ -182,16 +183,25 @@ static Node *expr(void) {
 
 // mul = primary ("*" primary | "/" primary)*
 static Node *mul(void) {
-  Node *node = primary();
+  Node *node = unary();
 
   for (;;) {
     if (consume('*'))
-      node = new_binary(ND_MUL, node, primary());
+      node = new_binary(ND_MUL, node, unary());
     else if (consume('/'))
-      node = new_binary(ND_DIV, node, primary());
+      node = new_binary(ND_DIV, node, unary());
     else
       return node;
   }
+}
+
+// unary = ("+" | "-")? primary
+static Node *unary(void) {
+  if (consume('+'))
+    return primary();
+  if (consume('-'))
+    return new_binary(ND_SUB, new_num(0), unary());
+  return primary();
 }
 
 // primary = "(" expr ")" | num
@@ -232,7 +242,7 @@ static void gen(Node *node) {
       printf("  imul rax, rdi\n");
       break;
     case ND_DIV:
-      printf("  cqo\n");
+      printf("  cqo\n"); // 64bitを128bitにする
       printf("  idiv rdi\n");
       break;
   }
@@ -247,6 +257,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // tokenize and parse
   user_input = argv[1];
   token = tokenize();
   Node *node = expr();
