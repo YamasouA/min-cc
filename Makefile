@@ -3,9 +3,9 @@ SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
 mincc: $(OBJS)
-		$(CC) -o mincc $(OBJS) $(LDFLAGS)
+		$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
-
+$(OBJS): mincc.h
 
 test: mincc
 		./test.sh
