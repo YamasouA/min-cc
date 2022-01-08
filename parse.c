@@ -1,6 +1,6 @@
 #include "mincc.h"
 
-static Node *new_node(NodeKind kind) {
+Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   return node;
@@ -55,7 +55,7 @@ Node *stmt() {
     return node;
   }
 
-  Node *node = expr();
+  Node *node = new_unary(ND_EXPR_STMT, expr());
   expect(";");
   return node;
 }
