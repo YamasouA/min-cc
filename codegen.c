@@ -1,5 +1,32 @@
 #include "mincc.h"
 
+// 事前に確保していた変数の領域の対応するアドレスに値を入れる
+void gen_addr(Node *node) {
+  if (node->kind == ND_LVAR) {
+    int offset = (node->name - 'a' + 1) * 8;
+    printf("  lea rax, [rbp-%d]\n", offset); // leaは[src]のアドレス計算を行う
+    printf("  push rax\n");
+    return;
+  }
+
+  error("not an lvalue");
+}
+
+void load() {
+  printf("  pop rax\n");
+  printf("  mov rax, [rax]\n"); // raxに入っているアドレスの値を[rax]で参照
+  printf("  push rax\n");
+}
+
+// =がある時にraxにrdiを代入する
+void store() {
+  printf("  pop rdi\n");
+  printf("  pop rax\n");
+  printf("  mov [rax], rdi\n");
+  printf("  push rdi\n");
+}
+
+// 与えられたノードからコードを作成する
 void gen(Node *node) {
   switch (node->kind) {
   case ND_NUM:
@@ -9,10 +36,19 @@ void gen(Node *node) {
     gen(node->lhs);
     printf("  add rsp, 8\n"); // returnしないから計算した値を破棄してる？
     return;
+  case ND_LVAR:
+    gen_addr(node); // 変数のアドレスをrspに格納
+    load(); // 変数の値を取り出して変数をrspに入れる
+    return;
+  case ND_ASSIGN:
+    gen_addr(node->lhs); // 左辺値のアドレスをrspに格納される
+    gen(node->rhs); // 右辺値の結果がrspに格納される
+    store(); // 左辺に右辺を代入する
+    return;
   case ND_RETURN:
     gen(node->lhs);
     printf("  pop rax\n");
-    printf("  ret\n");
+    printf("  jmp .Lreturn\n");
     return;
   }
 
@@ -66,7 +102,16 @@ void codegen(Node *node) {
     printf(".global main\n");
     printf("main:\n");
 
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
+    printf("  sub rsp, 208\n"); // 変数26個分の領域を確保する
+
     for (Node *n = node; n; n=n->next)
       gen(n);
-    printf("  ret\n");
+
+    // 最後の式の結果がRAXに残っているのでそれが返り値
+    printf("  .Lreturn:\n");
+    printf("  mov rsp, rbp\n"); // 呼び出しもとのアドレスに変える
+    printf("  pop rbp\n");
+    printf("  ret \n");
 }

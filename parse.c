@@ -19,6 +19,12 @@ Node *new_unary(NodeKind kind, Node *expr) {
   return node;
 }
 
+Node *new_lvar(char name) {
+  Node *node = new_node(ND_LVAR);
+  node->name = name;
+  return node;
+}
+
 Node *new_num(int val) {
   Node *node = new_node(ND_NUM);
   node->val = val;
@@ -27,6 +33,7 @@ Node *new_num(int val) {
 
 Node *stmt(void);
 Node *expr(void); 
+Node *assign(void);
 Node *equality(void);
 Node * relational(void);
 Node *add(void);
@@ -61,11 +68,18 @@ Node *stmt() {
 }
 
 
-// expr = equality
+// expr = assign
 Node *expr(void) {
-  return equality();
+  return assign();
 }
 
+// assign = equality ("=" assign)?
+Node *assign() {
+  Node *node = equality();
+  if (consume("="))
+    node = new_binary(ND_ASSIGN, node, assign());
+  return node;
+}
 // equality = relational ("==" relational | "!=" relational)*
 Node *equality(void) {
   Node *node = relational();
@@ -135,13 +149,16 @@ Node *unary(void) {
   return primary();
 }
 
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | ident | num
 Node *primary(void) {
   if (consume("(")) {
     Node *node = expr(); // ()の中の指揮を木に変換する
     expect(")"); // ')'を飛ばす
     return node;
   }
+  Token *tok = consume_ident(); // ここまで来たらnumかidentしか残ってない
+  if (tok)
+    return new_lvar(*tok->str);
 
   return new_num(expect_number());
 }
