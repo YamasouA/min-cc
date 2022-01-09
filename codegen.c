@@ -2,9 +2,8 @@
 
 // 事前に確保していた変数の領域の対応するアドレスに値を入れる
 void gen_addr(Node *node) {
-  if (node->kind == ND_LVAR) {
-    int offset = (node->name - 'a' + 1) * 8;
-    printf("  lea rax, [rbp-%d]\n", offset); // leaは[src]のアドレス計算を行う
+  if (node->kind == ND_VAR) {
+    printf("  lea rax, [rbp-%d]\n", node->var->offset); // leaは[src]のアドレス計算を行う
     printf("  push rax\n");
     return;
   }
@@ -36,7 +35,7 @@ void gen(Node *node) {
     gen(node->lhs);
     printf("  add rsp, 8\n"); // returnしないから計算した値を破棄してる？
     return;
-  case ND_LVAR:
+  case ND_VAR:
     gen_addr(node); // 変数のアドレスをrspに格納
     load(); // 変数の値を取り出して変数をrspに入れる
     return;
@@ -97,17 +96,17 @@ void gen(Node *node) {
   printf("  push rax\n");
 }
 
-void codegen(Node *node) {
+void codegen(Program *prog) {
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
     printf("main:\n");
 
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
-    printf("  sub rsp, 208\n"); // 変数26個分の領域を確保する
+    printf("  sub rsp, %d\n", prog->stack_size); // 変数26個分の領域を確保する
 
-    for (Node *n = node; n; n=n->next)
-      gen(n);
+    for (Node *node = prog->node; node; node =node->next)
+      gen(node);
 
     // 最後の式の結果がRAXに残っているのでそれが返り値
     printf("  .Lreturn:\n");
