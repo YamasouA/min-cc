@@ -79,7 +79,13 @@ Program *program() {
   return prog;
 }
 
-// stmt = "return" expr ";" | expr ";"
+Node *read_expr_stmt() {
+  return new_unary(ND_EXPR_STMT, expr());
+}
+
+// stmt = "return" expr ";" 
+//        | "if" "(" expr ")" stmt ("else" stmt)?
+//        | expr ";"
 Node *stmt() {
   if (consume("return")) {
     Node *node = new_unary(ND_RETURN, expr());
@@ -87,7 +93,18 @@ Node *stmt() {
     return node;
   }
 
-  Node *node = new_unary(ND_EXPR_STMT, expr());
+  if (consume("if")) {
+    Node *node = new_node(ND_IF);
+    expect("(");
+    node->cond = expr(); // 条件
+    expect(")");
+    node->then = stmt(); // 条件が真の時のプログラム
+    if (consume("else"))
+      node->els = stmt();
+    return node;
+  }
+
+  Node *node = read_expr_stmt();
   expect(";");
   return node;
 }
