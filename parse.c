@@ -237,7 +237,8 @@ Node *unary(void) {
   return primary();
 }
 
-// primary = "(" expr ")" | ident | num
+// primary = "(" expr ")" | ident args? | num
+// args = "("")"
 Node *primary(void) {
   if (consume("(")) {
     Node *node = expr(); // ()の中の指揮を木に変換する
@@ -246,6 +247,12 @@ Node *primary(void) {
   }
   Token *tok = consume_ident(); // ここまで来たらnumかidentしか残ってない
   if (tok) {
+    if (consume("(")) { // 変数の後が()ならそれは関数
+      expect(")");
+      Node *node = new_node(ND_FUNCALL);
+      node->funcname = strndup(tok->str, tok->len);
+      return node;
+    }
     Var *var = find_var(tok);
     if (!var)
       var = push_var(strndup(tok->str, tok->len));

@@ -107,8 +107,11 @@ void gen(Node *node) {
     printf("  pop rax\n");
     printf("  jmp .Lreturn\n");
     return;
+  case ND_FUNCALL:
+    printf("  call %s\n", node->funcname);
+    printf("  push rax\n");
+    return;
   }
-
   gen(node->lhs);
   gen(node->rhs);
 

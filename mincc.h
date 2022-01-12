@@ -72,6 +72,7 @@ typedef enum {
   ND_WHILE, // "while"
   ND_FOR, // "for"
   ND_BLOCK, // { ... }
+  ND_FUNCALL, // Function call
   ND_EXPR_STMT, // Expression statement
   ND_VAR, // variable
   ND_NUM, // Integer
@@ -94,6 +95,9 @@ struct Node {
   Node *inc;
 
   Node *body;
+
+  // Function call
+  char *funcname;
 
   Var *var; // Used if kind == ND_VAR
   long val; // Used if kind == ND_NUM
