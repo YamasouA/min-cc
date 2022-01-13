@@ -1,6 +1,7 @@
 #include "mincc.h"
 
 int labelseq = 0;
+char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 // 事前に確保していた変数の領域の対応するアドレスに値を入れる
 void gen_addr(Node *node) {
@@ -107,10 +108,22 @@ void gen(Node *node) {
     printf("  pop rax\n");
     printf("  jmp .Lreturn\n");
     return;
-  case ND_FUNCALL:
+  case ND_FUNCALL: {
+    int nargs = 0;
+    // 引数分だけ、スタックに積む
+    for (Node *arg = node->args; arg; arg=arg->next) {
+      gen(arg);
+      nargs++;
+    }
+    
+    // スタックから取り出して、レジスタにセットする
+    for (int i = nargs - 1; i >= 0; i--)
+        printf("  pop %s\n", argreg[i]);
+
     printf("  call %s\n", node->funcname);
     printf("  push rax\n");
     return;
+  }
   }
   gen(node->lhs);
   gen(node->rhs);
