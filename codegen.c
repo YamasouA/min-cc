@@ -1,6 +1,7 @@
 #include "mincc.h"
 
 int labelseq = 0;
+char *funcname;
 char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 // 事前に確保していた変数の領域の対応するアドレスに値を入れる
@@ -32,7 +33,7 @@ void store() {
 void gen(Node *node) {
   switch (node->kind) {
   case ND_NUM:
-    printf("  push %ld\n", node->val);
+    printf("  push %d\n", node->val);
     return;
   case ND_EXPR_STMT:
     gen(node->lhs);
@@ -106,7 +107,7 @@ void gen(Node *node) {
   case ND_RETURN:
     gen(node->lhs);
     printf("  pop rax\n");
-    printf("  jmp .Lreturn\n");
+    printf("  jmp .Lreturn.%s\n", funcname);
     return;
   case ND_FUNCALL: {
     int nargs = 0;
@@ -185,21 +186,27 @@ void gen(Node *node) {
   printf("  push rax\n");
 }
 
-void codegen(Program *prog) {
+void codegen(Function *prog) {
     printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
-    printf("main:\n");
 
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
-    printf("  sub rsp, %d\n", prog->stack_size); // 変数26個分の領域を確保する
+    for (Function *fn = prog; fn; fn = fn->next) {
+      printf(".global %s\n", fn->name);
+      printf("%s:\n", fn->name);
+      funcname = fn->name;
 
-    for (Node *node = prog->node; node; node =node->next)
-      gen(node);
+      // Prologue
+      printf("  push rbp\n");
+      printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
+      printf("  sub rsp, %d\n", fn->stack_size); // 変数分領域確保
 
-    // 最後の式の結果がRAXに残っているのでそれが返り値
-    printf("  .Lreturn:\n");
-    printf("  mov rsp, rbp\n"); // 呼び出しもとのアドレスに変える
-    printf("  pop rbp\n");
-    printf("  ret \n");
+      // Emit code
+      for (Node *node = fn->node; node; node = node->next)
+        gen(node);
+      
+      // Epilogue
+      printf(".Lreturn.%s:\n", funcname);
+      printf("  mov rsp, rbp\n");
+      printf("  pop rbp\n");
+      printf("  ret\n");
+    }
 }
