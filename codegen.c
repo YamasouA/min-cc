@@ -120,7 +120,22 @@ void gen(Node *node) {
     for (int i = nargs - 1; i >= 0; i--)
         printf("  pop %s\n", argreg[i]);
 
+    //We need to align RSP to a 16 byte boundary before
+    // calling a function because it is an ABI requirement.
+    // RAX is set to 0 for variadic function.
+    int seq = labelseq++;
+    printf("  mov rax, rsp\n");
+    printf("  and rax, 15\n"); // raxと1111のAND命令（16の倍数だと0となる）
+    printf("  jnz .Lcall%d\n", seq); // ZFフラグ(演算結果の全ビットが0の時1、それ以外の時0)がセットされていない場合に、指定された場所にジャンプする
+    printf("  mov rax, 0\n"); // raxの値をリセットする
     printf("  call %s\n", node->funcname);
+    printf("  jmp .Lend%d\n", seq);
+    printf(".Lcall%d:\n", seq); // rspが16の倍数じゃない時
+    printf("  sub rsp, 8\n"); // push, popは8の倍数で操作するから、16じゃなきゃ8の倍数になってる
+    printf("  mov rax, 0\n"); // raxの値をリセット
+    printf("  call %s\n", node->funcname);
+    printf("  add rsp, 8\n");
+    printf(".Lend%d:\n", seq);
     printf("  push rax\n");
     return;
   }
