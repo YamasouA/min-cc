@@ -4,3 +4,4 @@ tmp*
 *~
 *.o
 a.out
+*.swp
