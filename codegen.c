@@ -199,6 +199,14 @@ void codegen(Function *prog) {
       printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
       printf("  sub rsp, %d\n", fn->stack_size); // 変数分領域確保
 
+      // スタックに引数を積む
+      int i = 0;
+      for (VarList *vl = fn->params; vl; vl = vl->next) {
+        Var *var = vl->var;
+        // 引数をローカル変数と同等に扱う
+        printf("  mov [rbp-%d], %s\n", var->offset, argreg[i++]); // rbpは関数呼び出し時点での先頭アドレスを指している
+      }
+
       // Emit code
       for (Node *node = fn->node; node; node = node->next)
         gen(node);
