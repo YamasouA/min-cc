@@ -4,11 +4,17 @@ int labelseq = 0;
 char *funcname;
 char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
+void gen(Node *node);
+
 // 事前に確保していた変数の領域の対応するアドレスに値を入れる
 void gen_addr(Node *node) {
-  if (node->kind == ND_VAR) {
+  switch (node->kind) {
+  case ND_VAR:
     printf("  lea rax, [rbp-%d]\n", node->var->offset); // leaは[src]のアドレス計算を行う
     printf("  push rax\n");
+    return;
+  case ND_DEREF:
+    gen(node->lhs);
     return;
   }
 
@@ -47,6 +53,13 @@ void gen(Node *node) {
     gen_addr(node->lhs); // 左辺値のアドレスをrspに格納される
     gen(node->rhs); // 右辺値の結果がrspに格納される
     store(); // 左辺に右辺を代入する
+    return;
+  case ND_ADDR:
+    gen_addr(node->lhs);
+    return;
+  case ND_DEREF:
+    gen(node->lhs);
+    load();
     return;
   case ND_IF: {
     int seq = labelseq++;
