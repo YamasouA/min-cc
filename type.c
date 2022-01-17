@@ -9,7 +9,7 @@ Type *int_type() {
 Type *pointer_to(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
-  ty->base = base;
+  ty->base = base; // ~へのポインタ型
   return ty;
 }
 
@@ -43,22 +43,22 @@ void visit(Node *node) {
     node->ty = int_type();
     return;
   case ND_ADD:
-    if (node->rhs->ty->kind == TY_PTR) {
+    if (node->rhs->ty->kind == TY_PTR) { // ポインタの演算するときはポインタが左、右はポインタ以外 (e.g. &x+1)
       Node *tmp = node->lhs;
       node->lhs = node->rhs;
       node->rhs = tmp;
     }
-    if (node->rhs->ty->kind == TY_PTR)
+    if (node->rhs->ty->kind == TY_PTR) // 右と左の枝が両方ともポインタならエラー
       error_tok(node->tok, "invalid pointer arithmetic operands");
-    node->ty = node->lhs->ty;
+    node->ty = node->lhs->ty; // 左の子の型が親の型
     return;
   case ND_SUB:
-    if (node->rhs->ty->kind == TY_PTR)
+    if (node->rhs->ty->kind == TY_PTR) // 上と同じ
       error_tok(node->tok, "invalid pointer arithmetic operands");
     node->ty = node->lhs->ty;
     return;
   case ND_ASSIGN:
-    node->ty = node->lhs->ty;
+    node->ty = node->lhs->ty; // 等式の型は左辺値の値を使う
     return;
   case ND_ADDR:
     node->ty = pointer_to(node->lhs->ty);
