@@ -21,6 +21,12 @@ void gen_addr(Node *node) {
   error_tok(node->tok, "not an lvalue");
 }
 
+void gen_lval(Node *node) {
+  if (node->ty->kind == TY_ARRAY)
+    error_tok(node->tok, "not an lvalue");
+  gen_addr(node);
+}
+
 void load() {
   printf("  pop rax\n");
   printf("  mov rax, [rax]\n"); // raxに入っているアドレスの値を[rax]で参照
@@ -49,10 +55,11 @@ void gen(Node *node) {
     return;
   case ND_VAR:
     gen_addr(node); // 変数のアドレスをrspに格納
-    load(); // 変数の値を取り出して変数をrspに入れる
+    if (node->ty->kind != TY_ARRAY)
+      load(); // 変数の値を取り出して変数をrspに入れる
     return;
   case ND_ASSIGN:
-    gen_addr(node->lhs); // 左辺値のアドレスをrspに格納される
+    gen_lval(node->lhs); // 左辺値のアドレスをrspに格納される
     gen(node->rhs); // 右辺値の結果がrspに格納される
     store(); // 左辺に右辺を代入する
     return;
@@ -61,7 +68,8 @@ void gen(Node *node) {
     return;
   case ND_DEREF:
     gen(node->lhs);
-    load();
+    if (node->ty->kind != TY_ARRAY)
+      load();
     return;
   case ND_IF: {
     int seq = labelseq++;
@@ -164,13 +172,13 @@ void gen(Node *node) {
 
   switch (node->kind) {
     case ND_ADD:
-      if (node->ty->kind == TY_PTR)
-        printf("  imul rdi, 8\n");
+      if (node->ty->base)
+        printf("  imul rdi, %d\n", size_of(node->ty->base));
       printf("  add rax, rdi\n");
       break;
     case ND_SUB:
-      if (node->ty->kind == TY_PTR)
-        printf("  imul rdi, 8\n");
+      if (node->ty->base)
+        printf("  imul rdi, %d\n", size_of(node->ty->base));
       printf("  sub rax, rdi\n");
       break;
     case ND_MUL:
