@@ -21,6 +21,7 @@ Type *array_of(Type *base, int size) {
   return ty;
 }
 
+// tyの型情報から必要バイト数を返す
 int size_of(Type *ty) {
   if (ty->kind == TY_INT || ty->kind == TY_PTR)
     return 8;

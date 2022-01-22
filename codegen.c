@@ -10,7 +10,7 @@ void gen(Node *node);
 void gen_addr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
-    printf("  lea rax, [rbp-%d]\n", node->var->offset); // leaは[src]のアドレス計算を行う
+    printf("  lea rax, [rbp-%d]\n", node->var->offset); // leaはraxに[rbp-%d]のアドレスを入れる
     printf("  push rax\n");
     return;
   case ND_DEREF:
@@ -29,7 +29,7 @@ void gen_lval(Node *node) {
 
 void load() {
   printf("  pop rax\n");
-  printf("  mov rax, [rax]\n"); // raxに入っているアドレスの値を[rax]で参照
+  printf("  mov rax, [rax]\n"); // raxに入っているアドレスから値をロードしてraxにセットする
   printf("  push rax\n");
 }
 
@@ -37,7 +37,7 @@ void load() {
 void store() {
   printf("  pop rdi\n");
   printf("  pop rax\n");
-  printf("  mov [rax], rdi\n");
+  printf("  mov [rax], rdi\n"); // mov [rdi], raxならばRAXの値を、RDIに入っているアドレスにストアすることになる
   printf("  push rdi\n");
 }
 
@@ -55,7 +55,7 @@ void gen(Node *node) {
     return;
   case ND_VAR:
     gen_addr(node); // 変数のアドレスをrspに格納
-    if (node->ty->kind != TY_ARRAY)
+    if (node->ty->kind != TY_ARRAY) // 配列には代入
       load(); // 変数の値を取り出して変数をrspに入れる
     return;
   case ND_ASSIGN:
@@ -173,7 +173,7 @@ void gen(Node *node) {
   switch (node->kind) {
     case ND_ADD:
       if (node->ty->base)
-        printf("  imul rdi, %d\n", size_of(node->ty->base));
+        printf("  imul rdi, %d\n", size_of(node->ty->base)); // pointerや配列なら&x+1の1を適当な型サイズで進めるようにする
       printf("  add rax, rdi\n");
       break;
     case ND_SUB:
