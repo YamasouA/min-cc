@@ -390,7 +390,7 @@ Node *primary(void) {
     return node;
   }
 
-  if (tok == consume("sizeof"))
+  if (tok = consume("sizeof"))
     return new_unary(ND_SIZEOF, unary(), tok);
   //Token *tok = consume_ident(); // ここまで来たらnumかidentしか残ってない
   if (tok = consume_ident()) {

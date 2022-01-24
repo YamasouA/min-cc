@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     for (VarList *vl = fn->locals; vl; vl = vl->next) {
       Var *var = vl->var;
       offset += size_of(var->ty);
-      vl->var->offset = offset;
+      var->offset = offset;
     }
       fn->stack_size = offset;
   }
