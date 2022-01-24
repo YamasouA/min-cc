@@ -380,15 +380,19 @@ Node *func_args() {
   return head;
 }
 
-// primary = "(" expr ")" | ident func-args? | num
+// primary = "(" expr ")" | ident func-args? | num | "sizeof" unary
 Node *primary(void) {
+  Token *tok;
+
   if (consume("(")) {
     Node *node = expr(); // ()の中の指揮を木に変換する
     expect(")"); // ')'を飛ばす
     return node;
   }
+
+  if (tok == consume("sizeof"))
+    return new_unary(ND_SIZEOF, unary(), tok);
   //Token *tok = consume_ident(); // ここまで来たらnumかidentしか残ってない
-  Token *tok;
   if (tok = consume_ident()) {
     if (consume("(")) { // 変数の後が()ならそれは関数
       Node *node = new_node(ND_FUNCALL, tok);
