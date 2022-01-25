@@ -25,7 +25,6 @@ assert() {
         exit 1
     fi
 }
-
 assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'
 assert 41 'int main() { return  12 + 34 - 5 ; }'
@@ -139,6 +138,15 @@ assert 9 'int main() { int x[3][4]; return sizeof(**x) + 1; }'
 assert 9 'int main() { int x[3][4]; return sizeof **x + 1; }'
 assert 8 'int main() { int x[3][4]; return sizeof(**x + 1); }'
 
+assert 0 'int x; int main() { return x; }'
+assert 3 'int x; int main() { x=3; return x;}'
+assert 0 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[0]; }'
+assert 1 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[1]; }'
+assert 2 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[2]; }'
+assert 3 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[3]; }'
+
+assert 8 'int x; int main() { return sizeof(x); }'
+assert 32 'int x[4]; int main() { return sizeof(x); }'
 
 echo OK
 

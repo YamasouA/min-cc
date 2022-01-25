@@ -9,10 +9,16 @@ void gen(Node *node);
 // 事前に確保していた変数の領域の対応するアドレスに値を入れる
 void gen_addr(Node *node) {
   switch (node->kind) {
-  case ND_VAR:
-    printf("  lea rax, [rbp-%d]\n", node->var->offset); // leaはraxに[rbp-%d]のアドレスを入れる
-    printf("  push rax\n");
+  case ND_VAR: {
+    Var *var = node->var;
+    if (var->is_local) {
+      printf("  lea rax, [rbp-%d]\n", node->var->offset); // leaはraxに[rbp-%d]のアドレスを入れる
+      printf("  push rax\n");
+    } else {
+      printf("  push offset %s\n", var->name);
+    }
     return;
+  }
   case ND_DEREF:
     gen(node->lhs);
     return;
@@ -213,35 +219,51 @@ void gen(Node *node) {
   printf("  push rax\n");
 }
 
-void codegen(Function *prog) {
-    printf(".intel_syntax noprefix\n");
+void emit_data(Program *prog) {
+  printf(".data\n");
 
-    for (Function *fn = prog; fn; fn = fn->next) {
-      printf(".global %s\n", fn->name);
-      printf("%s:\n", fn->name);
-      funcname = fn->name;
+  for (VarList *vl = prog->globals; vl; vl = vl->next) {
+    Var *var = vl->var;
+    printf("%s:\n", var->name);
+    printf("  .zero %d\n", size_of(var->ty));
+  }
+}
 
-      // Prologue
-      printf("  push rbp\n");
-      printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
-      printf("  sub rsp, %d\n", fn->stack_size); // 変数分領域確保
+void emit_text(Program *prog) {
+  printf(".text\n");
 
-      // スタックに引数を積む
-      int i = 0;
-      for (VarList *vl = fn->params; vl; vl = vl->next) {
-        Var *var = vl->var;
-        // 引数をローカル変数と同等に扱う
-        printf("  mov [rbp-%d], %s\n", var->offset, argreg[i++]); // rbpは関数呼び出し時点での先頭アドレスを指している
-      }
+  for (Function *fn = prog->fns; fn; fn = fn->next) {
+    printf(".global %s\n", fn->name);
+    printf("%s:\n", fn->name);
+    funcname = fn->name;
 
-      // Emit code
-      for (Node *node = fn->node; node; node = node->next)
-        gen(node);
-      
-      // Epilogue
-      printf(".Lreturn.%s:\n", funcname);
-      printf("  mov rsp, rbp\n");
-      printf("  pop rbp\n");
-      printf("  ret\n");
+    // Prologue
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n"); // 呼び出し時点のアドレスをrbpに入れる
+    printf("  sub rsp, %d\n", fn->stack_size); // 変数分領域確保
+
+    // スタックに引数を積む
+    int i = 0;
+    for (VarList *vl = fn->params; vl; vl = vl->next) {
+      Var *var = vl->var;
+      // 引数をローカル変数と同等に扱う
+      printf("  mov [rbp-%d], %s\n", var->offset, argreg[i++]); // rbpは関数呼び出し時点での先頭アドレスを指している
     }
+
+    // Emit code
+    for (Node *node = fn->node; node; node = node->next)
+      gen(node);
+      
+    // Epilogue
+    printf(".Lreturn.%s:\n", funcname);
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+  }
+}
+
+void codegen(Program *prog) {
+  printf(".intel_syntax noprefix\n");
+  emit_data(prog);
+  emit_text(prog);
 }
