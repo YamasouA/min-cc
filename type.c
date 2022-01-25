@@ -1,21 +1,27 @@
 #include "mincc.h"
 
-Type *int_type() {
+Type *new_type(TypeKind kind) {
   Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_INT;
+  ty->kind = kind;
   return ty;
 }
 
+Type *char_type() {
+  return new_type(TY_CHAR);
+}
+
+Type *int_type() {
+  return new_type(TY_INT);
+}
+
 Type *pointer_to(Type *base) {
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_PTR;
+  Type *ty = new_type(TY_PTR);
   ty->base = base; // ~へのポインタ型
   return ty;
 }
 
 Type *array_of(Type *base, int size) {
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_ARRAY;
+  Type *ty = new_type(TY_ARRAY);
   ty->base = base;
   ty->array_size = size;
   return ty;
@@ -23,10 +29,16 @@ Type *array_of(Type *base, int size) {
 
 // tyの型情報から必要バイト数を返す
 int size_of(Type *ty) {
-  if (ty->kind == TY_INT || ty->kind == TY_PTR)
+  switch (ty->kind) {
+  case TY_CHAR:
+    return 1;
+  case TY_INT:
+  case TY_PTR:
     return 8;
-  assert(ty->kind == TY_ARRAY);
-  return size_of(ty->base) * ty->array_size;
+  default:
+    assert(ty->kind == TY_ARRAY); // ここにはTY_ARRAYの型が来るはず（来なければエラー）
+    return size_of(ty->base) * ty->array_size;
+  }
 }
 
 void visit(Node *node) {

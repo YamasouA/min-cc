@@ -2,7 +2,8 @@
 
 int labelseq = 0;
 char *funcname;
-char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+char *argreg1[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+char *argreg8[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 void gen(Node *node);
 
@@ -33,17 +34,23 @@ void gen_lval(Node *node) {
   gen_addr(node);
 }
 
-void load() {
+void load(Type *ty) {
   printf("  pop rax\n");
-  printf("  mov rax, [rax]\n"); // raxに入っているアドレスから値をロードしてraxにセットする
+  if (size_of(ty) == 1)
+    printf("  movsx rax, byte ptr[rax]\n");
+  else
+    printf("  mov rax, [rax]\n"); // raxに入っているアドレスから値をロードしてraxにセットする
   printf("  push rax\n");
 }
 
 // =がある時にraxにrdiを代入する
-void store() {
+void store(Type *ty) {
   printf("  pop rdi\n");
   printf("  pop rax\n");
-  printf("  mov [rax], rdi\n"); // mov [rdi], raxならばRAXの値を、RDIに入っているアドレスにストアすることになる
+  if (size_of(ty) == 1)
+    printf("  mov [rax], dil\n");
+  else
+    printf("  mov [rax], rdi\n"); // mov [rdi], raxならばRAXの値を、RDIに入っているアドレスにストアすることになる
   printf("  push rdi\n");
 }
 
@@ -62,12 +69,12 @@ void gen(Node *node) {
   case ND_VAR:
     gen_addr(node); // 変数のアドレスをrspに格納
     if (node->ty->kind != TY_ARRAY) // 配列には代入
-      load(); // 変数の値を取り出して変数をrspに入れる
+      load(node->ty); // 変数の値を取り出して変数をrspに入れる
     return;
   case ND_ASSIGN:
     gen_lval(node->lhs); // 左辺値のアドレスをrspに格納される
     gen(node->rhs); // 右辺値の結果がrspに格納される
-    store(); // 左辺に右辺を代入する
+    store(node->ty); // 左辺に右辺を代入する
     return;
   case ND_ADDR:
     gen_addr(node->lhs);
@@ -75,7 +82,7 @@ void gen(Node *node) {
   case ND_DEREF:
     gen(node->lhs);
     if (node->ty->kind != TY_ARRAY)
-      load();
+      load(node->ty);
     return;
   case ND_IF: {
     int seq = labelseq++;
@@ -148,7 +155,7 @@ void gen(Node *node) {
     
     // スタックから取り出して、レジスタにセットする
     for (int i = nargs - 1; i >= 0; i--)
-        printf("  pop %s\n", argreg[i]);
+        printf("  pop %s\n", argreg8[i]);
 
     //We need to align RSP to a 16 byte boundary before
     // calling a function because it is an ABI requirement.
@@ -229,6 +236,16 @@ void emit_data(Program *prog) {
   }
 }
 
+void load_arg(Var *var, int idx) {
+  int sz = size_of(var->ty);
+  if (sz == 1) {
+    printf("  mov [rbp-%d], %s\n", var->offset, argreg1[idx]);
+  } else {
+    assert(sz == 8);
+    printf("  mov [rbp-%d], %s\n", var->offset, argreg8[idx]);
+  }
+}
+
 void emit_text(Program *prog) {
   printf(".text\n");
 
@@ -245,9 +262,7 @@ void emit_text(Program *prog) {
     // スタックに引数を積む
     int i = 0;
     for (VarList *vl = fn->params; vl; vl = vl->next) {
-      Var *var = vl->var;
-      // 引数をローカル変数と同等に扱う
-      printf("  mov [rbp-%d], %s\n", var->offset, argreg[i++]); // rbpは関数呼び出し時点での先頭アドレスを指している
+      load_arg(vl->var, i++);
     }
 
     // Emit code
