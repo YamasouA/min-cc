@@ -70,6 +70,13 @@ Node *new_num(int val, Token *tok) {
   return node;
 }
 
+char *new_label() {
+  static int cnt = 0;
+  char buf[20];
+  sprintf(buf, ".L.data.%d", cnt++);
+  return strndup(buf, 20);
+}
+
 Function *function(void);
 Type *basetype(void);
 void global_var(void);
@@ -430,7 +437,8 @@ Node *func_args() {
   return head;
 }
 
-// primary = "(" expr ")" | ident func-args? | num | "sizeof" unary
+// primary = "(" expr ")" | ident func-args? | num | "sizeof" unary | str
+// args = "(" ident ("," ident)* ")"
 Node *primary(void) {
   Token *tok;
 
@@ -456,6 +464,16 @@ Node *primary(void) {
     return new_var(var, tok);
   }
   tok = token;
+  if (tok->kind == TK_STR) {
+    token = token->next; // consume使ってないから手動で進める
+
+    Type *ty = array_of(char_type(), tok->cont_len);
+    Var *var = push_var(new_label(), ty, false);
+    var->contents = tok->contents;
+    var->cont_len = tok->cont_len;
+    return new_var(var, tok);
+  }
+
   if (tok->kind != TK_NUM)
     error_tok(tok, "expected expression");
   return new_num(expect_number(), tok);

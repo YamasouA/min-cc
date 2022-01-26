@@ -151,7 +151,7 @@ Token *tokenize() {
   char *p = user_input;
   Token head;
   head.next = NULL;
-  Token *cur = &head;
+  Token *cur = &head; // curにトークナイズしたものを繋げていく
 
   while (*p) {
     if (isspace(*p)) {
@@ -180,6 +180,21 @@ Token *tokenize() {
       cur = new_token(TK_IDENT, cur, q, p - q);
       continue;
     }
+
+    // 文字リテラル
+    if (*p == '"') {
+      char *q = p++;
+      while (*p && *p != '"')
+        p++;
+      if (!*p)
+        error_at(q, "unclosed string literal");
+      p++;
+
+      cur = new_token(TK_STR, cur, q, p - q); // ""も含める
+      cur->contents = strndup(q + 1, p - q - 2); // ""この中身のみを取り出す
+      cur->cont_len = p - q - 1;
+      continue;
+  }
 
     if (isdigit(*p)) {
       cur = new_token(TK_NUM, cur, p, 0);
