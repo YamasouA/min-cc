@@ -13,7 +13,7 @@ assert() {
     expected="$1"
     input="$2"
 
-    ./mincc "$input" > tmp.s
+    ./mincc <(echo "$input") > tmp.s
     gcc -static -o tmp tmp.s tmp2.o
     ./tmp
     actual="$?"

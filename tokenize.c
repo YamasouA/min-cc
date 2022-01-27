@@ -1,5 +1,9 @@
 #include "mincc.h"
 
+char *filename;
+char *user_input;
+Token *token;
+
 // エラー報告用関数
 // printfと同じ引数を取る
 void error(char *fmt, ...) {
@@ -10,9 +14,32 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
+// Reports an error message in the following format and exit.
+//
+// foo.c:10: x = y + 1;
+//               ^ <error message here>
 void verror_at(char *loc, char *fmt, va_list ap) {
-  int pos = loc - user_input;
-  fprintf(stderr, "%s\n", user_input);
+  // Find a line containing 'loc'.
+  char *line = loc;
+  while (user_input < line && line[-1] != '\n')
+    line--;
+
+  char *end = loc;
+  while (*end != '\n')
+    end++;
+
+  // Get a line number.
+  int line_num = 1;
+  for (char *p = user_input; p < line; p++)
+    if (*p == '\n')
+      line_num++;
+
+  // Print out the line.
+  int indent = fprintf(stderr, "%s:%d ", filename, line_num);
+  fprintf(stderr, "%.*s\n", (int)(end - line), line);
+
+  // Show the error message.
+  int pos = loc - line + indent;
   fprintf(stderr, "%*s", pos, ""); // 空文字pos桁の幅で出力する
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);

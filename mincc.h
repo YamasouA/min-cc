@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -49,10 +50,11 @@ bool at_eof();
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 Token *tokenize();
 
-char *user_input;
+extern char *filename;
+extern char *user_input;
 
 // 現在注目しているトークン
-Token *token;
+extern Token *token;
 
 //
 // parse.c
