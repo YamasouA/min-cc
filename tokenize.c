@@ -141,7 +141,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   return tok;
 }
 
-bool startswitch(char *p, char *q) {
+bool startswith(char *p, char *q) {
   return memcmp(p, q, strlen(q)) == 0;
 }
 
@@ -159,7 +159,7 @@ char *starts_with_reserved(char *p) {
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     int len = strlen(kw[i]);
-    if (startswitch(p, kw[i]) && !is_alnum(p[len]))
+    if (startswith(p, kw[i]) && !is_alnum(p[len]))
         return kw[i];
   }
 
@@ -167,7 +167,7 @@ char *starts_with_reserved(char *p) {
   static char *ops[] = {"==", "!=", "<=", ">="};
 
   for (int i = 0; i < sizeof(ops) / sizeof(*ops); i++)
-    if (startswitch(p, ops[i]))
+    if (startswith(p, ops[i]))
         return ops[i];
 
   return NULL;
@@ -229,6 +229,23 @@ Token *tokenize() {
   while (*p) {
     if (isspace(*p)) {
       p++;
+      continue;
+    }
+
+    // Skip line comments
+    if (startswith(p, "//")) {
+      p += 2;
+      while (*p != '\n')
+        p++;
+      continue;
+    }
+
+    // Skip block comments
+    if (startswith(p, "/*")) {
+      char *q = strstr(p + 2, "*/");
+      if (!q)
+        error_at(p, "unclosed block comment");
+      p = q + 2;
       continue;
     }
 
