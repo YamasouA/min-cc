@@ -8,7 +8,9 @@ mincc: $(OBJS)
 $(OBJS): mincc.h
 
 test: mincc
-		./test.sh
+		./mincc tests > tmp.s
+		gcc -static -o tmp tmp.s
+		./tmp
 
 clean:
 		rm -f mincc *~ tmp* *.o
