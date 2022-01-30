@@ -462,7 +462,7 @@ Node *postfix() {
   Token *tok;
 
   for (;;) {
-    if (tok == consume("[")) {
+    if (tok = consume("[")) {
       // x[y] is short for *(x + y)
       Node *exp = new_binary(ND_ADD, node, expr(), tok);
       expect("]");
