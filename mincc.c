@@ -27,9 +27,6 @@ char *read_file(char *path) {
   return buf;
 }
 
-int align_to(int n, int align) {
-  return (n + align - 1) & ~(align - 1);
-}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -49,6 +46,7 @@ int main(int argc, char **argv) {
     int offset = 0;
     for (VarList *vl = fn->locals; vl; vl = vl->next) {
       Var *var = vl->var;
+      offset = align_to(offset, var->ty->align);
       offset += size_of(var->ty);
       var->offset = offset;
     }
