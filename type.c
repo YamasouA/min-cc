@@ -35,10 +35,23 @@ int size_of(Type *ty) {
   case TY_INT:
   case TY_PTR:
     return 8;
-  default:
-    assert(ty->kind == TY_ARRAY); // ここにはTY_ARRAYの型が来るはず（来なければエラー）
+  case TY_ARRAY:
     return size_of(ty->base) * ty->array_size;
+  default:
+    assert(ty->kind == TY_STRUCT);
+    Member *mem = ty->members;
+    while (mem->next)
+      mem = mem->next;
+    return mem->offset + size_of(mem->ty); // 最後のメンバのオフセット + 最後のメンバのサイズ
   }
+}
+
+Member *find_member(Type *ty, char *name) {
+  assert(ty->kind == TY_STRUCT);
+  for (Member *mem = ty->members; mem; mem = mem->next)
+    if (!strcmp(mem->name, name))
+      return mem;
+  return NULL;
 }
 
 void visit(Node *node) {
@@ -90,6 +103,15 @@ void visit(Node *node) {
   case ND_ASSIGN:
     node->ty = node->lhs->ty; // 等式の型は左辺値の値を使う
     return;
+  case ND_MEMBER: {
+    if (node->lhs->ty->kind != TY_STRUCT)
+      error_tok(node->tok, "not a struct");
+    node->member = find_member(node->lhs->ty, node->member_name);
+    if (!node->member)
+      error_tok(node->tok, "specified member does not exist");
+    node->ty = node->member->ty;
+    return;
+  }
   case ND_ADDR:
     // node->ty = pointer_to(node->lhs->ty);
     if (node->lhs->ty->kind == TY_ARRAY)
