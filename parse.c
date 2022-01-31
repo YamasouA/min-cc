@@ -506,7 +506,7 @@ Node *unary(void) {
   return postfix();
 }
 
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
 Node *postfix() {
   Node *node = primary();
   Token *tok;
@@ -521,6 +521,14 @@ Node *postfix() {
     }
     
     if (tok = consume(".")) {
+      node = new_unary(ND_MEMBER, node, tok);
+      node->member_name = expect_ident();
+      continue;
+    }
+
+    if (tok = consume("->")) {
+      // x->y is short for (*x).y
+      node = new_unary(ND_DEREF, node, tok);
       node = new_unary(ND_MEMBER, node, tok);
       node->member_name = expect_ident();
       continue;
