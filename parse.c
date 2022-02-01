@@ -1,5 +1,14 @@
 #include "mincc.h"
 
+// Scope for local variables, global variables or typedefs
+typedef struct VarScope VarScope;
+struct VarScope {
+  VarScope *next;
+  char *name;
+  Var *var;
+  Type *type_def;
+};
+
 // Scope for struct tags
 typedef struct TagScope TagScope;
 struct TagScope {
@@ -11,15 +20,14 @@ struct TagScope {
 VarList *locals;
 VarList *globals;
 
-VarList *scope;
+VarScope *var_scope;
 TagScope *tag_scope;
 
-// Find a variable by name
-Var *find_var(Token *tok) {
-  for (VarList *vl = scope; vl; vl = vl->next) {
-    Var *var = vl->var;
-    if (strlen(var->name) == tok->len && !memcmp(tok->str, var->name, tok->len))
-      return var;
+// Find a variable or a typedef by name.
+VarScope *find_var(Token *tok) {
+  for (VarScope *sc = var_scope; sc; sc = sc->next) {
+    if (strlen(sc->name) == tok->len && !memcmp(tok->str, sc->name, tok->len))
+      return sc;
   }
   return NULL;
 }
@@ -57,6 +65,14 @@ Node *new_var(Var *var, Token *tok) {
   return node;
 }
 
+VarScope *push_scope(char *name) {
+  VarScope *sc = calloc(1, sizeof(VarScope));
+  sc->name = name;
+  sc->next = var_scope;
+  var_scope = sc;
+  return sc;
+}
+
 // ローカル変数を連結リストに繋げる
 Var *push_var(char *name, Type *ty, bool is_local) {
   Var *var = calloc(1, sizeof(Var));
@@ -74,12 +90,17 @@ Var *push_var(char *name, Type *ty, bool is_local) {
     globals = vl;
   }
 
-  VarList *sc = calloc(1, sizeof(VarList));
-  sc->var = var;
-  sc->next = scope;
-  scope = sc;
-
+  push_scope(name)->var = var;
   return var;
+}
+
+Type *find_typedef(Token *tok) {
+  if (tok->kind == TK_IDENT) {
+    VarScope *sc = find_var(token);
+    if (sc)
+      return sc->type_def;
+  }
+  return NULL;
 }
 
 Node *new_num(int val, Token *tok) {
@@ -142,7 +163,7 @@ Program *program() {
   return prog;
 }
 
-// basetype = ("char" | "int" | struct-decl) "*"*
+// basetype = ("char" | "int" | struct-decl | typedef-name) "*"*
 Type *basetype() {
   if (!is_typename(token))
     error_tok(token, "typename expected");
@@ -152,8 +173,11 @@ Type *basetype() {
     ty = char_type();
   else if (consume("int"))
     ty = int_type();
-  else
+  else if (consume("struct"))
     ty = struct_decl();
+  else
+    ty = find_var(consume_ident())->type_def;
+  assert(ty);
 
   while (consume("*"))
     ty = pointer_to(ty);
@@ -180,9 +204,6 @@ void push_tag_scope(Token *tok, Type *ty) {
 
 // struct-decl = "struct" "{" struct-member "}"
 Type *struct_decl() {
-  // Read struct members.
-  expect("struct");
-
   // Read a struct tag.
   Token *tag = consume_ident();
   if (tag && !peek("{")) { // struct t x;みたいな時に既にstruct tが宣言されているかを見る
@@ -327,7 +348,7 @@ Node *read_expr_stmt() {
 }
 
 bool is_typename() {
-  return peek("char") || peek("int") || peek("struct");
+  return peek("char") || peek("int") || peek("struct") || find_typedef(token);
 }
 
 // stmt = "return" expr ";" 
@@ -335,6 +356,7 @@ bool is_typename() {
 //        | "while" "(" expr ")" stmt
 //        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 //        | "{" stmt* "}" 複数行のコードが記述
+//        | "typedef" basetype ident ("[" num "]")* ";"
 //        | declaration
 //        | expr ";"
 Node *stmt() {
@@ -389,18 +411,27 @@ Node *stmt() {
     head.next = NULL;
     Node *cur = &head;
 
-    VarList *sc1 = scope;
+    VarScope *sc1 = var_scope;
     TagScope *sc2 = tag_scope;
     while (!consume("}")) {
       cur->next = stmt();
       cur = cur->next;
     }
-    scope = sc1;
+    var_scope = sc1;
     tag_scope = sc2;
 
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     return node;
+  }
+
+  if (tok = consume("typedef")) {
+    Type *ty = basetype();
+    char *name = expect_ident();
+    ty = read_type_suffix(ty);
+    expect(";");
+    push_scope(name)->type_def = ty;
+    return new_node(ND_NULL, tok);
   }
 
   if (is_typename())
@@ -542,7 +573,7 @@ Node *postfix() {
 //
 // Statement expression is a GNU C extension
 Node *stmt_expr(Token *tok) {
-  VarList *sc1 = scope;
+  VarScope *sc1 = var_scope;
   TagScope *sc2 = tag_scope;
 
   Node *node = new_node(ND_STMT_EXPR, tok);
@@ -555,7 +586,7 @@ Node *stmt_expr(Token *tok) {
   }
   expect(")");
 
-  scope = sc1;
+  var_scope = sc1;
   tag_scope = sc2;
 
   if (cur->kind != ND_EXPR_STMT)
@@ -607,10 +638,10 @@ Node *primary(void) {
       node->args = func_args();
       return node;
     }
-    Var *var = find_var(tok);
-    if (!var)
-      error_tok(tok, "undefined variable");
-    return new_var(var, tok);
+    VarScope *sc = find_var(tok);
+    if (sc && sc->var)
+      return new_var(sc->var, tok);
+    error_tok(tok, "undefined variable");
   }
   tok = token;
   if (tok->kind == TK_STR) {
