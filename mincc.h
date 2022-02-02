@@ -163,6 +163,7 @@ Program *program();
 //
 
 typedef enum {
+  TY_VOID,
   TY_CHAR,
   TY_SHORT,
   TY_INT,
@@ -191,6 +192,7 @@ struct Member {
 };
 
 int align_to(int n, int align);
+Type *void_type();
 Type *char_type();
 Type *short_type();
 Type *int_type();
