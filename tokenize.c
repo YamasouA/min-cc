@@ -219,6 +219,28 @@ Token *read_string_literal(Token *cur, char *start) {
   return tok;
 }
 
+Token *read_char_literal(Token *cur, char *start) {
+  char *p = start + 1;
+  if (*p == '\0')
+    error_at(start, "unclosed char literal");
+
+  char c;
+  if (*p == '\\') {
+    p++;
+    c = get_escape_char(*p++);
+  } else {
+    c = *p++;
+  }
+
+  if (*p != '\'')
+    error_at(start, "char literal too long");
+  p++;
+
+  Token *tok = new_token(TK_NUM, cur, start, p - start);
+  tok->val = c;
+  return tok;
+}
+
 // 入力文字列pをトークナイズしてそれを返す
 Token *tokenize() {
   char *p = user_input;
@@ -271,11 +293,18 @@ Token *tokenize() {
       continue;
     }
 
-    // 文字リテラル
+    // 文字リテラル string literal
     if (*p == '"') {
       cur = read_string_literal(cur, p);
       p += cur->len;
       continue;
+  }
+
+  // char literal
+  if (*p == '\'') {
+    cur = read_char_literal(cur, p);
+    p += cur->len;
+    continue;
   }
 
     if (isdigit(*p)) {
