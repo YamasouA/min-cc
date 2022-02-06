@@ -86,13 +86,14 @@ void store(Type *ty) {
 }
 
 void truncate(Type *ty) {
-  printf("  pop rax\n");
+  printf("  pop rax\n"); // al, ax, eax, raxは全て戻り値(バイト、ワード、ダブルワード、クワドワードで別れてる)
 
   if (ty->kind == TY_BOOL) {
     printf("  cmp rax, 0\n");
     printf("  setne al\n");
   }
 
+  // al -> rax, ax -> rax, eax -> rax
   int sz = size_of(ty);
   if (sz == 1) {
     printf(" movsx rax, al\n");
