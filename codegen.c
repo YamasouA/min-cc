@@ -136,6 +136,10 @@ void gen(Node *node) {
   case ND_ADDR:
     gen_addr(node->lhs);
     return;
+  case ND_COMMA:
+    gen(node->lhs);
+    gen(node->rhs);
+    return;
   case ND_DEREF:
     gen(node->lhs);
     if (node->ty->kind != TY_ARRAY)
