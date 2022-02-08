@@ -105,6 +105,18 @@ void truncate(Type *ty) {
   printf("  push rax\n");
 }
 
+void inc(Type *ty) {
+  printf("  pop rax\n");
+  printf("  add rax, %d\n", ty->base ? size_of(ty->base) : 1); // ポインタの計算なら、ポインタサイズ分移動させる。そうでなければ値を１増やす:
+  printf("  push rax\n");
+}
+
+void dec(Type *ty) {
+  printf("  pop rax\n");
+  printf("  sub rax, %d\n", ty->base ? size_of(ty->base) : 1);
+  printf("  push rax\n");
+}
+
 // 与えられたノードからコードを作成する
 void gen(Node *node) {
   switch (node->kind) {
@@ -132,6 +144,36 @@ void gen(Node *node) {
     gen_lval(node->lhs); // 左辺値のアドレスをrspに格納される
     gen(node->rhs); // 右辺値の結果がrspに格納される
     store(node->ty); // 左辺に右辺を代入する
+    return;
+  case ND_PRE_INC:
+    gen_lval(node->lhs);
+    printf("  push [rsp]\n");
+    load(node->ty);
+    inc(node->ty);
+    store(node->ty);
+    return;
+  case ND_PRE_DEC:
+    gen_lval(node->lhs);
+    printf("  push [rsp]\n");
+    load(node->ty);
+    dec(node->ty);
+    store(node->ty);
+    return;
+  case ND_POST_INC:
+    gen_lval(node->lhs);
+    printf("  push [rsp]\n");
+    load(node->ty);
+    inc(node->ty);
+    store(node->ty);
+    dec(node->ty);
+    return;
+  case ND_POST_DEC:
+    gen_lval(node->lhs);
+    printf("  push [rsp]\n");
+    load(node->ty);
+    dec(node->ty);
+    store(node->ty);
+    inc(node->ty);
     return;
   case ND_ADDR:
     gen_addr(node->lhs);

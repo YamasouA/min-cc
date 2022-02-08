@@ -774,6 +774,7 @@ Node *cast() {
 }
 
 // unary = ("+" | "-" | "*" | "&")? cast
+//       | ("++" | "--") unary
 //       | postfix
 Node *unary(void) {
   Token *tok;
@@ -786,10 +787,14 @@ Node *unary(void) {
     return new_unary(ND_ADDR, cast(), tok);
   if (tok = consume("*"))
     return new_unary(ND_DEREF, cast(), tok);
+  if (tok = consume("++"))
+    return new_unary(ND_PRE_INC, unary(), tok);
+  if (tok = consume("--"))
+    return new_unary(ND_PRE_DEC, unary(), tok);
   return postfix();
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
 Node *postfix() {
   Node *node = primary();
   Token *tok;
@@ -814,6 +819,16 @@ Node *postfix() {
       node = new_unary(ND_DEREF, node, tok);
       node = new_unary(ND_MEMBER, node, tok);
       node->member_name = expect_ident();
+      continue;
+    }
+
+    if (tok = consume("++")) {
+      node = new_unary(ND_POST_INC, node, tok);
+      continue;
+    }
+
+    if (tok = consume("--")) {
+      node = new_unary(ND_POST_DEC, node, tok);
       continue;
     }
 
