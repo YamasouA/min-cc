@@ -118,6 +118,7 @@ void visit(Node *node) {
   case ND_NE:
   case ND_LT:
   case ND_LE:
+  case ND_NOT:
     node->ty = int_type();
     return;
   case ND_NUM:
@@ -153,6 +154,7 @@ void visit(Node *node) {
   case ND_A_SUB:
   case ND_A_MUL:
   case ND_A_DIV:
+  case ND_BITNOT:
     node->ty = node->lhs->ty; // 等式の型は左辺値の値を使う
     return;
   case ND_COMMA:
