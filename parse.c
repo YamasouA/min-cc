@@ -132,6 +132,9 @@ bool is_typename();
 Node *stmt(void);
 Node *expr(void); 
 Node *assign(void);
+Node *bitand();
+Node *bitor();
+Node *bitxor();
 Node *equality(void);
 Node * relational(void);
 Node *add(void);
@@ -682,10 +685,10 @@ Node *expr(void) {
   return node;
 }
 
-// assign = equality (assign-op assign)?
+// assign = bitor (assign-op assign)?
 // assign-op = "=" | "+=" | "-=" | "*=" | "/="
 Node *assign() {
-  Node *node = equality();
+  Node *node = bitor();
   Token *tok;
 
   if (tok = consume("="))
@@ -700,6 +703,34 @@ Node *assign() {
     node = new_binary(ND_A_DIV, node, assign(), tok);
   return node;
 }
+
+// bitor = bitxor ("|" bitxor)*
+Node *bitor() {
+  Node *node = bitxor();
+  Token *tok;
+  while (tok = consume("|"))
+    node = new_binary(ND_BITOR, node, bitxor(), tok);
+  return node;
+}
+
+// bitxor = bitand ("^" bitand)*
+Node *bitxor() {
+  Node *node = bitand();
+  Token *tok;
+  while (tok = consume("^"))
+    node = new_binary(ND_BITXOR, node, bitxor(), tok);
+  return node;
+}
+
+// bitand = equality ("&" equality)*
+Node *bitand() {
+  Node *node = equality();
+  Token *tok;
+  while (tok = consume("&"))
+    node = new_binary(ND_BITAND, node, equality(), tok);
+  return node;
+}
+
 // equality = relational ("==" relational | "!=" relational)*
 Node *equality(void) {
   Node *node = relational();
