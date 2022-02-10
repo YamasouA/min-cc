@@ -149,6 +149,10 @@ void visit(Node *node) {
   case ND_PRE_DEC:
   case ND_POST_INC:
   case ND_POST_DEC:
+  case ND_A_ADD:
+  case ND_A_SUB:
+  case ND_A_MUL:
+  case ND_A_DIV:
     node->ty = node->lhs->ty; // 等式の型は左辺値の値を使う
     return;
   case ND_COMMA:
