@@ -107,7 +107,7 @@ void truncate(Type *ty) {
 
 void inc(Type *ty) {
   printf("  pop rax\n");
-  printf("  add rax, %d\n", ty->base ? size_of(ty->base) : 1); // ポインタの計算なら、ポインタサイズ分移動させる。そうでなければ値を１増やす:
+  printf("  add rax, %d\n", ty->base ? size_of(ty->base) : 1);
   printf("  push rax\n");
 }
 
