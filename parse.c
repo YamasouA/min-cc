@@ -432,7 +432,7 @@ Type *struct_decl() {
   Token *tag = consume_ident();
   if (tag && !peek("{")) { // struct t x;みたいな時に既にstruct tが宣言されているかを見る
     TagScope *sc = find_tag(tag);
-    if (!sc) {
+    if (!sc) { // 宣言されてなかったら、スコープに追加する
       Type *ty = struct_type();
       push_tag_scope(tag, ty);
       return ty;
@@ -445,24 +445,24 @@ Type *struct_decl() {
 
   // Although it looks weird, "struct *foo" is legal C that defines
   // foo as a pointer to an unnamed incomplete struct type.
-  if (!consume("{"))
+  if (!consume("{")) // structにメンバーがないとき
     return struct_type();
 
   TagScope *sc = find_tag(tag);
   Type *ty;
 
-  if (sc && sc->depth == scope_depth) {
+  if (sc && sc->depth == scope_depth) { // スコープ内にタグがあってかつ、同じスコープの深さの時
     // If there's an existing struct type having the same tag name in
     // the same block scope, this is a redefinition.
     if (sc->ty->kind != TY_STRUCT)
       error_tok(tag, "not a struct tag");
     ty = sc->ty;
-  } else {
+  } else { // スコープにタグがない、もしくは同じ深さにない時
     // Register a struct type as an incomplete type early, so that you
     // can write recursive structs such as 
     // "struct T { struct T *next}".
     ty = struct_type();
-    if (tag)
+    if (tag) // tagがあるならスコープに入れる
       push_tag_scope(tag, ty);
   }
 
@@ -654,6 +654,7 @@ bool is_typename() {
 //        | "while" "(" expr ")" stmt
 //        | "for" "(" (expr? ";" | declaration) expr? ";" expr? ")" stmt
 //        | "{" stmt* "}" 複数行のコードが記述
+//        | "break" ";"
 //        | declaration
 //        | expr ";"
 Node *stmt() {
@@ -726,6 +727,11 @@ Node *stmt() {
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     return node;
+  }
+
+  if (tok = consume("break")) {
+    expect(";");
+    return new_node(ND_BREAK, tok);
   }
 
   if (is_typename())
