@@ -691,7 +691,7 @@ Node *stmt() {
     expect(")");
 
     Node *sw = current_switch;
-    current_switch = node;
+    current_switch = node; // current_switchはcaseを見るときにcurrent_switch->case_nextに加えていく
     node->then = stmt();
     current_switch = sw;
     return node;
