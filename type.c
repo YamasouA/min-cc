@@ -175,6 +175,9 @@ void visit(Node *node) {
   case ND_BITNOT:
     node->ty = node->lhs->ty; // 等式の型は左辺値の値を使う
     return;
+  case ND_TERNARY: // ?:
+    node->ty = node->then->ty;
+    return;
   case ND_COMMA:
     node->ty = node->rhs->ty;
     return;

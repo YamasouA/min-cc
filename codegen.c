@@ -149,6 +149,19 @@ void gen(Node *node) {
     gen(node->rhs); // 右辺値の結果がrspに格納される
     store(node->ty); // 左辺に右辺を代入する
     return;
+  case ND_TERNARY: {
+    int seq = labelseq++;
+    gen(node->cond); // 条件判定
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je .Lelse%d\n", seq);
+    gen(node->then);
+    printf("  jmp .Lend%d\n", seq);
+    printf(".Lelse%d:\n", seq);
+    gen(node->els);
+    printf(".Lend%d:\n", seq);
+    return;
+  }
   case ND_PRE_INC:
     gen_lval(node->lhs);
     printf("  push [rsp]\n");
