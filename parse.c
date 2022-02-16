@@ -627,7 +627,8 @@ void global_var() {
 typedef struct Designator Designator;
 struct Designator {
   Designator *next;
-  int idx;
+  int idx;  // array
+  Member *mem; // struct
 };
 
 // Creates a node for an array access. For example, if var represents
@@ -640,6 +641,13 @@ Node *new_desg_node2(Var *var, Designator *desg) {
     return new_var(var, tok);
 
   Node *node = new_desg_node2(var, desg->next);
+
+  if (desg->mem) {
+    node = new_unary(ND_MEMBER, node, desg->mem->tok);
+    node->member_name = desg->mem->name;
+    return node;
+  }
+
   node = new_binary(ND_ADD, node, new_num(desg->idx, tok), tok);
   return new_unary(ND_DEREF, node, tok);
 }
@@ -653,7 +661,7 @@ Node *new_desg_node(Var *var, Designator *desg, Node *rhs) {
 Node *lvar_init_zero(Node *cur, Var *var, Type *ty, Designator *desg) {
   if (ty->kind == TY_ARRAY) {
     for (int i = 0; i < ty->array_size; i++) {
-      Designator desg2 = {desg, i++};
+      Designator desg2 = {desg, i++, NULL};
       cur = lvar_init_zero(cur, var, ty->base, &desg2);
     }
     return cur;
@@ -676,6 +684,9 @@ Node *lvar_init_zero(Node *cur, Var *var, Type *ty, Designator *desg) {
 // x[1][0] = 4;
 // x[1][1] = 5;
 // x[1][2] = 6;
+//
+// Struct members are initialized in declaration order. For example,
+// `struct { int a; int b; } x={1, 2}` sets x.a to 1 and x.b to 2.
 //
 // There are a few special rules for ambiguous initializers and shorthand notations:
 // 
@@ -703,14 +714,14 @@ Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
     int i;
 
     for (i=0; i < len; i++) {
-      Designator desg2 = {desg, i};
+      Designator desg2 = {desg, i, NULL};
       Node *rhs = new_num(tok->contents[i], tok);
       cur->next = new_desg_node(var, &desg2, rhs);
       cur = cur->next;
     }
 
     for (; i < ty->array_size; i++) {
-      Designator desg2 = {desg, i};
+      Designator desg2 = {desg, i, NULL};
       cur = lvar_init_zero(cur, var, ty->base, &desg2);
     }
     return cur;
@@ -726,7 +737,7 @@ Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
     int i = 0;
 
     do {
-      Designator desg2 = {desg, i++};
+      Designator desg2 = {desg, i++, NULL};
       cur = lvar_initializer(cur, var, ty->base, &desg2);
     } while (!peek_end() && consume(","));
 
@@ -734,13 +745,31 @@ Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
 
     // Set excess array elements to zero.
     while (i < ty->array_size) {
-      Designator desg2 = {desg, i++};
+      Designator desg2 = {desg, i++, NULL};
       cur = lvar_init_zero(cur, var, ty->base, &desg2);
     }
 
     if (ty->is_incomplete) {
       ty->array_size = i;
       ty->is_incomplete = false;
+    }
+    return cur;
+  }
+
+  if (ty->kind == TY_STRUCT) {
+    Member *mem = ty->members;
+
+    do {
+      Designator desg2 = {desg, 0, mem};
+      cur = lvar_initializer(cur, var, mem->ty, &desg2);
+      mem = mem->next;
+    } while (!peek_end() && consume(","));
+
+    expect_end();
+
+    for (; mem; mem = mem->next) {
+      Designator desg2 = {desg, 0, mem};
+      cur = lvar_init_zero(cur, var, mem->ty, &desg2);
     }
     return cur;
   }
