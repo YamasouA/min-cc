@@ -194,6 +194,7 @@ struct Initializer {
 
   // Reference to another global variable
   char *label;
+  long addend;
 };
 
 typedef struct Function Function;
