@@ -604,12 +604,31 @@ bool peek_end() {
 }
 
 // リスト型の終端を消費する
-void expect_end() {
+bool consume_end() {
   Token *tok = token;
-  if (consume(",") && consume("}"))
-    return;
+  if (consume("}") || (consume(",") && consume("}")))
+    return true;
   token = tok;
-  expect("}");
+  return false;
+}
+
+void skip_excess_elements2() {
+  for (;;) {
+    if (consume("{"))
+      skip_excess_elements2();
+    else
+      assign();
+
+    if (consume_end())
+      return;
+    expect(",");
+  }
+}
+
+void skip_excess_elements() {
+  expect(",");
+  warn_tok(token, "excess elements in initializer");
+  skip_excess_elements2();
 }
 
 // global-var = type-specifier declarator type-suffix ";"
@@ -670,8 +689,8 @@ Initializer *gvar_initializer(Initializer *cur, Type *ty) {
       i++;
     } while (i < limit && !peek_end() && consume(","));
 
-    if (open)
-      expect_end();
+    if (open && !consume_end())
+      skip_excess_elements();
 
     // Set excess array elements to zero.
     cur = new_init_zero(cur, size_of(ty->base, tok) * (ty->array_size - i));
@@ -694,8 +713,8 @@ Initializer *gvar_initializer(Initializer *cur, Type *ty) {
       mem = mem->next;
     } while (mem && !peek_end() && consume(","));
 
-    if (open)
-      expect_end();
+    if (open && !consume_end())
+      skip_excess_elements();
 
       // Set excess struct elements to zero.
     if (mem) {
@@ -857,8 +876,8 @@ Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
       cur = lvar_initializer(cur, var, ty->base, &desg2);
     } while (i < limit && !peek_end() && consume(","));
 
-    if (open)
-      expect_end();
+    if (open && !consume_end())
+      skip_excess_elements();
 
     // Set excess array elements to zero.
     // iで何個代入したかわかる。あまりを追加する
@@ -884,8 +903,8 @@ Node *lvar_initializer(Node *cur, Var *var, Type *ty, Designator *desg) {
       mem = mem->next;
     } while (mem && !peek_end() && consume(","));
 
-    if (open)
-      expect_end();
+    if (open && !consume_end())
+      skip_excess_elements();
 
     for (; mem; mem = mem->next) {
       Designator desg2 = {desg, 0, mem};
